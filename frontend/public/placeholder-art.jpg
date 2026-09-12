@@ -1,0 +1,15 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="600" height="600" viewBox="0 0 600 600" fill="none">
+  <rect width="600" height="600" fill="#FAF5EF"/>
+  <circle cx="300" cy="270" r="160" fill="#F4E8D8" stroke="#E6D2B8" stroke-width="3" stroke-dasharray="8 8"/>
+  <circle cx="300" cy="270" r="110" fill="#EAD6C0" opacity="0.6"/>
+  <g transform="translate(230, 200)">
+    <path d="M70 20 C40 20 20 40 20 70 C20 100 40 120 70 120 C100 120 120 100 120 70 C120 40 100 20 70 20 Z" fill="#D9531E" opacity="0.15"/>
+    <path d="M70 25 C45 25 25 45 25 70 C25 90 40 110 65 112 C72 113 78 107 78 100 C78 95 82 91 87 91 L95 91 C108 91 115 80 115 68 C115 44 95 25 70 25 Z" fill="#D9531E"/>
+    <circle cx="45" cy="55" r="7" fill="#FFF"/>
+    <circle cx="65" cy="45" r="7" fill="#F4A261"/>
+    <circle cx="90" cy="55" r="7" fill="#2A9D8F"/>
+    <circle cx="95" cy="75" r="6" fill="#E76F51"/>
+  </g>
+  <text x="300" y="440" text-anchor="middle" fill="#8C4A27" font-family="serif" font-size="26" font-weight="bold">Karigar AI Handcraft</text>
+  <text x="300" y="475" text-anchor="middle" fill="#B37D56" font-family="sans-serif" font-size="16">Authentic Indian Artisan Creation</text>
+</svg>

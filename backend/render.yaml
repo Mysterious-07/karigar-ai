@@ -1,0 +1,22 @@
+services:
+  - type: web
+    name: karigar-ai-backend
+    runtime: python
+    rootDir: backend
+    buildCommand: pip install -r requirements.txt && alembic upgrade head
+    startCommand: uvicorn app.main:app --host 0.0.0.0 --port $PORT
+    envVars:
+      - key: XAI_API_KEY
+        sync: false          # Set manually in Render dashboard (secret)
+      - key: FRONTEND_URL
+        sync: false          # Set after Vercel deploy
+      - key: UPLOAD_DIR
+        value: uploads
+      - key: DATABASE_URL
+        fromDatabase:
+          name: karigar-ai-db
+          property: connectionString
+
+databases:
+  - name: karigar-ai-db
+    plan: free
