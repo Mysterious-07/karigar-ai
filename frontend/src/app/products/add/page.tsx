@@ -253,13 +253,24 @@ function AddProductContent() {
           <p className="text-xs text-stone-500 font-medium">{t.wizardStep1Desc}</p>
 
           {/* Hidden file inputs for camera and gallery */}
+          {/* Using opacity/position instead of display:none for mobile browser compatibility */}
           <input
             ref={cameraInputRef}
             type="file"
             accept="image/*"
             capture="environment"
             onChange={handleImageChange}
-            className="hidden"
+            style={{
+              position: 'absolute',
+              width: '1px',
+              height: '1px',
+              padding: 0,
+              margin: '-1px',
+              overflow: 'hidden',
+              clip: 'rect(0, 0, 0, 0)',
+              whiteSpace: 'nowrap',
+              border: 0,
+            }}
             aria-label="Take photo with camera"
           />
           <input
@@ -267,7 +278,17 @@ function AddProductContent() {
             type="file"
             accept="image/*"
             onChange={handleImageChange}
-            className="hidden"
+            style={{
+              position: 'absolute',
+              width: '1px',
+              height: '1px',
+              padding: 0,
+              margin: '-1px',
+              overflow: 'hidden',
+              clip: 'rect(0, 0, 0, 0)',
+              whiteSpace: 'nowrap',
+              border: 0,
+            }}
             aria-label="Choose image from gallery"
           />
 
