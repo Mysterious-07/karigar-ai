@@ -150,24 +150,27 @@ class TestImageValidation:
             assert "Corrupted or invalid" in str(e.detail)
     
     def test_valid_image_accepted(self, image_service):
-        """Test that valid images are accepted and processed."""
+        """Test that valid images are accepted and original is saved."""
         from fastapi import UploadFile
-        
+
         img_bytes = io.BytesIO()
         Image.new("RGB", (100, 100), color="red").save(img_bytes, format="JPEG")
         img_bytes.seek(0)
-        
+
         mock_file = MagicMock(spec=UploadFile)
         mock_file.filename = "valid_test.jpg"
         mock_file.content_type = "image/jpeg"
         mock_file.file = img_bytes
-        
-        orig_path, enhanced_path = image_service.validate_and_save_product_image(mock_file)
-        
-        assert orig_path is not None
-        assert enhanced_path is not None
-        assert "products" in orig_path
-        assert enhanced_path.endswith("_enhanced.jpg")
+
+        # Now returns 4 values: (rel_original, original_abs_path, enhanced_abs_path, rel_enhanced)
+        rel_original, original_abs_path, enhanced_abs_path, rel_enhanced = image_service.validate_and_save_product_image(mock_file)
+
+        assert rel_original is not None
+        assert rel_enhanced is not None
+        assert "products" in rel_original
+        assert rel_enhanced.endswith("_enhanced.jpg")
+        assert original_abs_path is not None
+        assert enhanced_abs_path is not None
 
 
 class TestGracefulDegradation:
