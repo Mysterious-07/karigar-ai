@@ -1,8 +1,8 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { useRouter } from "next/navigation";
-import { ArrowLeft, Loader2, Sparkles, AlertCircle, Edit3, Mic, PenLine, Camera } from "lucide-react";
+import { ArrowLeft, Loader2, Sparkles, AlertCircle, Edit3, Mic, PenLine, Camera, Image } from "lucide-react";
 import Link from "next/link";
 import { api, authApi } from "@/lib/api";
 import VoiceRecorder from "@/components/voice/VoiceRecorder";
@@ -25,6 +25,9 @@ function AddProductContent() {
   const [isProcessing, setIsProcessing] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [draftRestored, setDraftRestored] = useState(false);
+
+  const cameraInputRef = useRef<HTMLInputElement>(null);
+  const galleryInputRef = useRef<HTMLInputElement>(null);
 
   // Restore draft on mount
   useEffect(() => {
@@ -65,6 +68,16 @@ function AddProductContent() {
       };
       reader.readAsDataURL(file);
     }
+    // Reset input value so the same file can be selected again
+    e.target.value = "";
+  };
+
+  const handleTakePhoto = () => {
+    cameraInputRef.current?.click();
+  };
+
+  const handleChooseFromGallery = () => {
+    galleryInputRef.current?.click();
   };
 
   const handleVoiceTranscript = (text: string) => {
@@ -239,29 +252,73 @@ function AddProductContent() {
           </label>
           <p className="text-xs text-stone-500 font-medium">{t.wizardStep1Desc}</p>
 
-          <div className="relative border-2 border-dashed border-[#D9531E]/40 rounded-3xl p-6 text-center hover:bg-orange-50/40 transition cursor-pointer bg-[#FAF8F5]">
-            <input
-              type="file"
-              accept="image/jpeg,image/png,image/webp"
-              onChange={handleImageChange}
-              className="absolute inset-0 w-full h-full opacity-0 cursor-pointer"
-            />
+          {/* Hidden file inputs for camera and gallery */}
+          <input
+            ref={cameraInputRef}
+            type="file"
+            accept="image/*"
+            capture="environment"
+            onChange={handleImageChange}
+            className="hidden"
+            aria-label="Take photo with camera"
+          />
+          <input
+            ref={galleryInputRef}
+            type="file"
+            accept="image/*"
+            onChange={handleImageChange}
+            className="hidden"
+            aria-label="Choose image from gallery"
+          />
+
+          <div className="space-y-3">
             {imagePreview ? (
               <div className="space-y-3">
-                <img
-                  src={imagePreview}
-                  alt="Product preview"
-                  className="max-h-60 mx-auto rounded-2xl object-cover shadow-sm border border-stone-200"
-                />
-                <p className="text-xs text-[#D9531E] font-extrabold">{t.photoAdded}</p>
+                <div className="relative border-2 border-dashed border-[#D9531E]/40 rounded-3xl p-6 text-center bg-[#FAF8F5]">
+                  <img
+                    src={imagePreview}
+                    alt="Product preview"
+                    className="max-h-60 mx-auto rounded-2xl object-cover shadow-sm border border-stone-200"
+                  />
+                  <p className="text-xs text-[#D9531E] font-extrabold mt-3">{t.photoAdded}</p>
+                </div>
+                <div className="flex gap-3">
+                  <button
+                    type="button"
+                    onClick={handleTakePhoto}
+                    className="flex-1 flex items-center justify-center gap-2 px-4 py-3 bg-white hover:bg-stone-50 text-stone-700 border border-stone-200 rounded-2xl font-bold text-sm transition active:scale-95"
+                  >
+                    <Camera className="w-5 h-5 text-[#D9531E]" />
+                    <span>{t.takePhotoBtn}</span>
+                  </button>
+                  <button
+                    type="button"
+                    onClick={handleChooseFromGallery}
+                    className="flex-1 flex items-center justify-center gap-2 px-4 py-3 bg-white hover:bg-stone-50 text-stone-700 border border-stone-200 rounded-2xl font-bold text-sm transition active:scale-95"
+                  >
+                    <Image className="w-5 h-5 text-[#D9531E]" />
+                    <span>{t.chooseGalleryBtn}</span>
+                  </button>
+                </div>
               </div>
             ) : (
-              <div className="space-y-3 py-4">
-                <div className="w-16 h-16 bg-orange-100 text-[#D9531E] rounded-3xl flex items-center justify-center mx-auto shadow-sm">
-                  <Camera className="w-8 h-8" />
-                </div>
-                <h3 className="text-base font-extrabold text-stone-800">{t.takePhotoBtn}</h3>
-                <p className="text-xs text-stone-400 font-medium">{t.chooseGalleryBtn}</p>
+              <div className="space-y-3">
+                <button
+                  type="button"
+                  onClick={handleTakePhoto}
+                  className="w-full flex items-center justify-center gap-3 px-5 py-5 bg-[#D9531E] hover:bg-[#B84214] text-white rounded-2xl font-extrabold text-base transition active:scale-95 shadow-sm"
+                >
+                  <Camera className="w-6 h-6" />
+                  <span>{t.takePhotoBtn}</span>
+                </button>
+                <button
+                  type="button"
+                  onClick={handleChooseFromGallery}
+                  className="w-full flex items-center justify-center gap-3 px-5 py-5 bg-white hover:bg-stone-50 text-stone-800 border-2 border-stone-200 rounded-2xl font-extrabold text-base transition active:scale-95"
+                >
+                  <Image className="w-6 h-6 text-[#D9531E]" />
+                  <span>{t.chooseGalleryBtn}</span>
+                </button>
               </div>
             )}
           </div>
