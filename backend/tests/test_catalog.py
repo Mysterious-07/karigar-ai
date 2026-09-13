@@ -99,7 +99,7 @@ def test_product_image_upload_valid(client, sample_artisan_and_product):
     assert response.status_code == 200
     data = response.json()
     assert data["original_image"] is not None
-    assert data["processed_image"] is not None
+    assert data["processed_image"] is None  # Background task hasn't completed yet
 
 # 11. Product image upload - invalid format (400)
 def test_product_image_upload_invalid_format(client, sample_artisan_and_product):

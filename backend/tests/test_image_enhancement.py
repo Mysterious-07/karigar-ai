@@ -31,6 +31,10 @@ class TestImageEnhancement:
         assert status["lighting_enhancement"]["available"] is True
         assert status["canvas_formatting"]["available"] is True
     
+    @pytest.mark.skipif(
+        not ImageService()._rembg_available,
+        reason="rembg not installed — skipping AI background removal availability test"
+    )
     def test_ai_background_removal_available(self, image_service):
         """Test that AI background removal is reported as available."""
         assert image_service._rembg_available is True

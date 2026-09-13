@@ -97,8 +97,10 @@ class ImageService:
         logger.info(f"Original image saved: {original_filename}")
 
         # 6. Return relative and absolute paths (enhancement happens in background)
-        rel_original = f"{settings.UPLOAD_DIR}/products/{original_filename}".replace("\\", "/")
-        rel_enhanced = f"{settings.UPLOAD_DIR}/products/{enhanced_filename}".replace("\\", "/")
+        # Note: relative paths are stored in DB and served via /uploads/ mount,
+        # so they must NOT include the UPLOAD_DIR prefix (getImageUrl adds /uploads/).
+        rel_original = f"products/{original_filename}"
+        rel_enhanced = f"products/{enhanced_filename}"
 
         return rel_original, original_abs_path, enhanced_abs_path, rel_enhanced
 
