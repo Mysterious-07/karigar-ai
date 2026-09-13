@@ -14,6 +14,7 @@ MAX_FILE_SIZE_BYTES = 10 * 1024 * 1024  # 10 MB
 MAX_DIMENSION = 1200  # Max dimension for processed images
 CANVAS_BG_COLOR = (250, 250, 250)  # Professional off-white background for products
 
+
 class ImageService:
     """
     Product photo enhancement service for Karigar AI.
@@ -25,14 +26,14 @@ class ImageService:
     - Lighting/contrast enhancement using PIL - traditional image processing
     - Professional e-commerce canvas formatting
     """
-    
+
     def __init__(self):
         self.upload_base = os.path.abspath(
             os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(__file__))), settings.UPLOAD_DIR)
         )
         self.products_dir = os.path.join(self.upload_base, "products")
         os.makedirs(self.products_dir, exist_ok=True)
-        
+
         # Try to import rembg - it's optional for graceful degradation
         self._rembg_available = False
         self._rembg_remove = None
@@ -44,13 +45,17 @@ class ImageService:
         except Exception as e:
             logger.warning(f"rembg not available: {e}. Background removal will be disabled.")
 
-    def validate_and_save_product_image(self, file: UploadFile) -> Tuple[str, str]:
-        """Validates and enhances product image. Returns (original_path, enhanced_path)."""
+    def validate_and_save_product_image(self, file: UploadFile) -> Tuple[str, str, str, str]:
+        """
+        Validates and saves the original product image.
+        Returns (rel_original, original_abs_path, enhanced_abs_path, rel_enhanced).
+        Does NOT perform enhancement - that happens in the background.
+        """
         # 1. Check file size
         file.file.seek(0, os.SEEK_END)
         file_size = file.file.tell()
         file.file.seek(0)
-        
+
         if file_size > MAX_FILE_SIZE_BYTES:
             raise HTTPException(
                 status_code=status.HTTP_400_BAD_REQUEST,
@@ -89,24 +94,40 @@ class ImageService:
 
         # 5. Save original image UNCHANGED
         image.save(original_abs_path)
+        logger.info(f"Original image saved: {original_filename}")
 
-        # 6. Process image: AI enhancement pipeline
-        try:
-            enhanced_img = self._enhance_image(image)
-            enhanced_img.save(enhanced_abs_path, format="JPEG", quality=90)
-            logger.info(f"Image enhancement successful for {original_filename}")
-        except Exception as e:
-            logger.error(f"Image enhancement failed: {e}. Saving fallback version.")
-            fallback_img = image.convert("RGB")
-            if fallback_img.width > MAX_DIMENSION or fallback_img.height > MAX_DIMENSION:
-                fallback_img.thumbnail((MAX_DIMENSION, MAX_DIMENSION), Image.Resampling.LANCZOS)
-            fallback_img.save(enhanced_abs_path, format="JPEG", quality=85)
-
-        # 7. Return relative paths
+        # 6. Return relative and absolute paths (enhancement happens in background)
         rel_original = f"{settings.UPLOAD_DIR}/products/{original_filename}".replace("\\", "/")
         rel_enhanced = f"{settings.UPLOAD_DIR}/products/{enhanced_filename}".replace("\\", "/")
 
-        return rel_original, rel_enhanced
+        return rel_original, original_abs_path, enhanced_abs_path, rel_enhanced
+
+    def perform_enhancement(self, original_abs_path: str, enhanced_abs_path: str):
+        """
+        Loads the original image, runs the AI enhancement pipeline, and saves the result.
+        This method is designed to be called from a background task.
+        Preserves the existing fallback behavior if enhancement fails.
+        """
+        logger.info(f"Starting image enhancement: {original_abs_path}")
+
+        image = Image.open(original_abs_path)
+        image.load()
+
+        try:
+            enhanced_img = self._enhance_image(image)
+            enhanced_img.save(enhanced_abs_path, format="JPEG", quality=90)
+            logger.info(f"Image enhancement successful, saved to {enhanced_abs_path}")
+        except Exception as e:
+            logger.error(f"Image enhancement failed: {e}. Saving fallback version.")
+            try:
+                fallback_img = image.convert("RGB")
+                if fallback_img.width > MAX_DIMENSION or fallback_img.height > MAX_DIMENSION:
+                    fallback_img.thumbnail((MAX_DIMENSION, MAX_DIMENSION), Image.Resampling.LANCZOS)
+                fallback_img.save(enhanced_abs_path, format="JPEG", quality=85)
+                logger.info(f"Fallback enhancement saved to {enhanced_abs_path}")
+            except Exception as e2:
+                logger.error(f"Fallback enhancement also failed: {e2}")
+                raise
 
     def _enhance_image(self, image: Image.Image) -> Image.Image:
         """
@@ -119,7 +140,7 @@ class ImageService:
         """
         if image.mode != "RGBA":
             image = image.convert("RGBA")
-        
+
         # Stage 1: AI Background Removal
         if self._rembg_available and self._rembg_remove:
             try:
@@ -132,7 +153,7 @@ class ImageService:
         else:
             logger.info("AI background removal unavailable. Skipping background removal.")
             image = image.convert("RGB")
-        
+
         # Stage 2: Lighting and Color Enhancement
         if image.mode == "RGBA":
             r, g, b, a = image.split()
@@ -142,10 +163,10 @@ class ImageService:
             image = Image.merge("RGBA", (r, g, b, a))
         else:
             image = self._enhance_lighting(image)
-        
+
         # Stage 3: Professional Canvas Placement
         image = self._place_on_canvas(image)
-        
+
         return image
 
     def _enhance_lighting(self, image: Image.Image) -> Image.Image:
@@ -160,12 +181,12 @@ class ImageService:
         """
         if image.mode != "RGB":
             image = image.convert("RGB")
-        
+
         image = ImageEnhance.Brightness(image).enhance(1.1)
         image = ImageEnhance.Contrast(image).enhance(1.15)
         image = ImageEnhance.Color(image).enhance(1.05)
         image = image.filter(ImageFilter.UnsharpMask(radius=0.5, percent=50, threshold=3))
-        
+
         return image
 
     def _place_on_canvas(self, image: Image.Image) -> Image.Image:
@@ -177,7 +198,7 @@ class ImageService:
         - Adds subtle shadow for depth perception
         """
         max_dim = MAX_DIMENSION
-        
+
         if image.mode == "RGBA":
             bbox = image.getbbox()
             if bbox:
@@ -188,27 +209,27 @@ class ImageService:
                     min(image.width, bbox[2] + padding),
                     min(image.height, bbox[3] + padding)
                 ))
-                
+
                 if cropped.width > max_dim or cropped.height > max_dim:
                     cropped.thumbnail((max_dim, max_dim), Image.Resampling.LANCZOS)
-                
+
                 canvas_width = max(min(cropped.width + 40, max_dim), 200)
                 canvas_height = max(min(cropped.height + 40, max_dim), 200)
-                
+
                 canvas = Image.new("RGBA", (canvas_width, canvas_height), CANVAS_BG_COLOR + (255,))
-                
+
                 x_offset = (canvas_width - cropped.width) // 2
                 y_offset = (canvas_height - cropped.height) // 2
-                
+
                 # Create subtle shadow
                 shadow = Image.new("RGBA", canvas.size, (0, 0, 0, 0))
                 shadow_draw = Image.new("RGBA", cropped.size, (0, 0, 0, 40))
                 shadow.paste(shadow_draw, (x_offset + 4, y_offset + 4), shadow_draw)
                 shadow = shadow.filter(ImageFilter.GaussianBlur(radius=8))
-                
+
                 canvas = Image.alpha_composite(canvas, shadow)
                 canvas.alpha_composite(cropped, (x_offset, y_offset))
-                
+
                 return canvas.convert("RGB")
             else:
                 return image.convert("RGB")
@@ -235,5 +256,6 @@ class ImageService:
                 "description": "Professional e-commerce canvas with subtle shadow"
             }
         }
+
 
 image_service = ImageService()

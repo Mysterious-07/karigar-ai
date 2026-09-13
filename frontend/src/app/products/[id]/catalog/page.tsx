@@ -2,7 +2,7 @@
 
 import { useState, useEffect, use } from "react";
 import { useRouter } from "next/navigation";
-import { ArrowLeft, Save, RefreshCw, Sparkles, CheckCircle2, AlertCircle, Award, Info, Share2, Layers } from "lucide-react";
+import { ArrowLeft, Save, RefreshCw, Sparkles, CheckCircle2, AlertCircle, Award, Info, Share2, Layers, Loader2 } from "lucide-react";
 import Link from "next/link";
 import { api, ProductData, getImageUrl } from "@/lib/api";
 import { useLanguage } from "@/components/LanguageContext";
@@ -108,6 +108,7 @@ function CatalogViewContent({ params }: { params: Promise<{ id: string }> }) {
     product_original_image?: string;
     product_enhanced_image?: string;
   } | null>(null);
+  const [isEnhancing, setIsEnhancing] = useState(false);
 
   const [formData, setFormData] = useState({
     title: "",
@@ -162,6 +163,46 @@ function CatalogViewContent({ params }: { params: Promise<{ id: string }> }) {
       loadProductData();
     }
   }, [productId]);
+
+  // Poll for enhancement completion when original image exists but enhanced image doesn't
+  useEffect(() => {
+    if (!product || !product.original_image || product.processed_image) {
+      setIsEnhancing(false);
+      return;
+    }
+
+    setIsEnhancing(true);
+
+    let mounted = true;
+    const pollInterval = setInterval(async () => {
+      try {
+        const status = await api.getImageEnhancementStatus(productId);
+        if (!mounted) return;
+
+        setEnhancementStatus(status);
+
+        if (status.product_has_enhanced_image) {
+          // Enhancement complete - refresh product data to get processed_image path
+          try {
+            const updatedProduct = await api.getProduct(productId);
+            if (mounted) {
+              setProduct(updatedProduct);
+            }
+          } catch (err) {
+            console.warn("Could not refresh product data:", err);
+          }
+        }
+      } catch (err) {
+        // Don't treat temporary polling errors as enhancement completion
+        console.warn("Enhancement status poll failed:", err);
+      }
+    }, 2000);
+
+    return () => {
+      mounted = false;
+      clearInterval(pollInterval);
+    };
+  }, [product?.original_image, product?.processed_image, productId]);
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
     setFormData({
@@ -372,11 +413,17 @@ function CatalogViewContent({ params }: { params: Promise<{ id: string }> }) {
                 Professional Canvas
               </span>
             )}
+            {isEnhancing && (
+              <span className="inline-flex items-center gap-1 px-2.5 py-1 bg-amber-100 text-amber-800 text-xs font-bold rounded-full border border-amber-300">
+                <Loader2 className="w-3 h-3 animate-spin" />
+                AI Enhancing Image...
+              </span>
+            )}
           </div>
         )}
 
-        {/* Image Comparison View */}
-        {enhancementStatus && enhancementStatus.product_has_enhanced_image && (
+        {/* Image Comparison View (shown when enhancement is complete) */}
+        {enhancementStatus && enhancementStatus.product_has_enhanced_image && !isEnhancing && (
           <div className="grid grid-cols-2 gap-3 mb-3">
             <div className="text-center">
               <p className="text-[10px] font-bold text-stone-500 uppercase tracking-wider mb-1">Original Photo</p>
@@ -403,8 +450,27 @@ function CatalogViewContent({ params }: { params: Promise<{ id: string }> }) {
           </div>
         )}
 
-        {/* Single Image Display (fallback) */}
-        {!enhancementStatus || !enhancementStatus.product_has_enhanced_image ? (
+        {/* Enhancing State: Show original image with progress indicator */}
+        {isEnhancing && (
+          <div className="text-center">
+            <p className="text-[10px] font-bold text-stone-500 uppercase tracking-wider mb-1">Original Photo</p>
+            <div className="relative inline-block overflow-hidden rounded-xl border border-stone-200">
+              <img
+                src={getImageUrl(product?.original_image)}
+                alt={formData.title}
+                className="max-h-64 mx-auto rounded-xl object-cover"
+                onError={(e) => { e.currentTarget.onerror = null; e.currentTarget.src = '/placeholder-art.jpg'; }}
+              />
+            </div>
+            <div className="mt-3 flex items-center justify-center gap-2 text-amber-700">
+              <Loader2 className="w-4 h-4 animate-spin" />
+              <span className="text-xs font-bold">AI is enhancing your image...</span>
+            </div>
+          </div>
+        )}
+
+        {/* Single Image Display (fallback when not enhancing and no enhanced image yet) */}
+        {!isEnhancing && (!enhancementStatus || !enhancementStatus.product_has_enhanced_image) && (
           <div className="text-center">
             <img
               src={imageUrl}
@@ -416,7 +482,10 @@ function CatalogViewContent({ params }: { params: Promise<{ id: string }> }) {
               }}
             />
           </div>
-        ) : (
+        )}
+
+        {/* Final Enhanced Photo (when enhancement complete, not enhancing) */}
+        {!isEnhancing && enhancementStatus && enhancementStatus.product_has_enhanced_image && (
           <div className="text-center">
             <p className="text-[10px] font-bold text-[#D9531E] uppercase tracking-wider mb-1">Final Enhanced Photo</p>
             <img
